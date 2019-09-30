@@ -1,0 +1,10 @@
+{
+  "name": "make-tslint",
+  "version": "1.0.0",
+  "description": "add tslint with rules of ant-design for my project.",
+  "main": "index.js",
+  "scripts": {},
+  "author": "mxyzzhong@163.com",
+  "license": "MIT",
+  "bin": "./index.js"
+}
