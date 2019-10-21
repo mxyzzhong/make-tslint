@@ -13,3 +13,5 @@ After downloading the tslint json, it will install packages defined on the field
 ### Get Started
 
 `make-tslint`
+
+> `make-tslint` will create a script `lint` in `package-json` and it can lint the code in the src folder. You can modify the lint path if you need.

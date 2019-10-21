@@ -22,46 +22,65 @@ function loading() {
 
   return () => {
     process.stdout.write('\r');
-    clearInterval(interval)
+    clearInterval(interval);
   };
 }
 
 function writeFile(url) {
-  const writeStream = fs.createWriteStream(lintJsonPath);
-  const client = https.get(url);
+  return new Promise((res, rej) => {
+    const writeStream = fs.createWriteStream(lintJsonPath);
+    const client = https.get(url);
 
-  client.on('response', response => {
-    if (response.statusCode === 200) {
-      response.pipe(writeStream);
-    } else {
-      throw Error(
-        `\x1b[31m${response.statusMessage}\n\x1b[0mDownload file: \x1b[33m${url}\x1b[0m failed`
-      );
-    }
-  });
+    client.on('response', response => {
+      if (response.statusCode === 200) {
+        response.pipe(writeStream);
+      } else {
+        rej(
+          Error(
+            `\x1b[31m${response.statusMessage}\n\x1b[0mDownload file: \x1b[33m${url}\x1b[0m failed`
+          )
+        );
+      }
+    });
 
-  client.on('close', () => {
-    setImmediate(installPkgs);
-  });
+    client.on('close', () => {
+      setImmediate(res);
+    });
 
-  client.on('error', error => {
-    throw error;
+    client.on('error', error => {
+      rej(error);
+    });
   });
 }
 
 function installPkgs() {
-  const lintJson = require(lintJsonPath);
-  const pkgs = lintJson.extends;
-  if (Array.isArray(pkgs) && pkgs.length) {
-    const stopLoading = loading();
-    exec(`npm i ${pkgs.join(' ')}  --save-dev`, err => {
+  return new Promise((res, rej) => {
+    const lintJson = require(lintJsonPath);
+    const pkgs = lintJson.extends;
+    if (Array.isArray(pkgs) && pkgs.length) {
+      exec(`npm i tslint ${pkgs.join(' ')}  --save-dev`, err => {
+        if (err) {
+          rej(err);
+        }
+        res();
+      });
+    }
+  });
+}
+
+function addLintScript() {
+  return new Promise((res, rej) => {
+    const packageJsonPath = path.resolve(process.cwd(), './package.json');
+    const packageJson = require(packageJsonPath);
+    packageJson.scripts = packageJson.scripts || {};
+    packageJson.scripts.lint = 'tslint src/**/*.ts{,x}';
+    fs.writeFile(packageJsonPath, JSON.stringify(packageJson, null, 2), err => {
       if (err) {
-        throw err;
+        rej(err);
       }
-      stopLoading();
-      console.log('\x1b[32mtslint installed\x1b[0m');
+      res();
     });
-  }
+  });
 }
 
 let jsonUrl = config.jsonUrl;
@@ -71,10 +90,20 @@ const rl = readline.createInterface({
   output: process.stdout
 });
 
-rl.question(`Enter the json url, default: ${jsonUrl}\n`, url => {
+rl.question(`Enter the json url, default: ${jsonUrl}\n`, async url => {
   if (url) {
     jsonUrl = url;
   }
   rl.close();
-  writeFile(jsonUrl);
+  const stopLoading = loading();
+  try {
+    await writeFile(jsonUrl);
+    await installPkgs();
+    await addLintScript();
+  } catch (e) {
+    stopLoading();
+    console.error(`\x1b[31mfailed: ${e.message}\x1b[0m`);
+    return;
+  }
+  console.log('\x1b[32mtslint installed\x1b[0m');
 });
