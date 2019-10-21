@@ -103,7 +103,8 @@ rl.question(`Enter the json url, default: ${jsonUrl}\n`, async url => {
   } catch (e) {
     stopLoading();
     console.error(`\x1b[31mfailed: ${e.message}\x1b[0m`);
-    return;
+    process.exit();
   }
   console.log('\x1b[32mtslint installed\x1b[0m');
+  process.exit();
 });
